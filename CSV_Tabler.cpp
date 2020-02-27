@@ -5,6 +5,11 @@ LEARNT
 1. Using a pointer to a class object of which the class is declared later, but you cant define it before, since that too uses a pointer to this class... this was a problem i faced in the Attendance_Register
 Solution - We can just 'declare' a structure, ie. that there will be a structure with so and so name... i really didn't knew before that this is possible ;D
         Note- But it shows "Class_name has Incomplete type", if you use it with a name in a method, but havent defined the class by then
+
+2. We can access even the private members of a passed reference/object of the same class if using any method
+    Seems obvious, but i didnt knew it, and then thought that this should be obvious bcz that's how copy constructors may work
+
+3. Use 'ch = getchar();' So that '\n' isn't ignored, but spaces are ignored
 */
 
 /*
@@ -18,22 +23,24 @@ This just started as a Casual Program to read the CSV file of contacts, only the
 #include<string>
 #include<vector>
 
+#ifdef _WIN32
+    #include <windows.h>
+#elif __linux__
+    #include <sys/ioctl.h>
+    #include <unistd.h>
+#elif __MINGW32__
+    #include <windows.h>
+#elif __CYGWIN__
+    #include <windows.h>
+#endif
+
 using namespace std;
 
-string getString(int num){
-    string in,out;
-    while (num>0)   //get digits in string
-    {
-        in.push_back(num%10);
-        num/=10;
-    }
-    out.reserve(in.size());
-    for (int i = in.size()-1; i >= 0; i--)  //just reverse the string
-    {
-        out.push_back(in[i]);
-    }
-    return out;
-}
+int terminal_height=39;
+
+void set_h_w(void);
+void clearscr();
+string getString(int num);
 
 struct head_box;
 struct contain_box;
@@ -61,6 +68,7 @@ struct head_box{
         unsigned int content_length;
         const contain_box* at(size_t);
         void addContBox(contain_box);
+        void eraseContainers(void);
         head_box(){
             content_length = 0;
         }
@@ -88,74 +96,16 @@ public:
     void addHeadBox(string); //take ALL args needed for the box
     void addEmpBoxes(void); //stabilizes the difference between row size in different columns
     void removeEmptyColumns(void);
+    void IndividualDisplay(int);
     void display(void);
+    void exportID_Titles(CSV_Tabler&);
+    void exportIndex(CSV_Tabler&, int);
     CSV_Tabler(void);
     ~CSV_Tabler(void);
 };
 
-void CSV_Tabler::removeEmptyColumns(){
-    bool isEmpty=true;
-    for(int i=0; i<hlength; i++){
-        for(int j=0; j<titles[i].content_length; j++){
-            if(titles[i].at(j)->content != ""){
-                isEmpty = false;
-            }
-        }
-        if(isEmpty){
-            titles.erase(titles.begin()+i);
-            ids.erase(ids.begin()+i);
-            --hlength;
-        }
-        isEmpty = true;
-    }
-}
-
-void CSV_Tabler::display(){
-    int i,j;
-    cout<<'|';
-    for (i = 0; i < titles.size(); i++) //TODO - for proper spacing, have a data member having count of max length that any element of it has in that column
-    {
-        cout<<' '<<titles[i].title<<" | ";
-    }
-    this->addEmpBoxes();    //Just to ensure accessing content doesn't give out of bound
-    cout<<'\n';
-    for(i=0; i<titles[i].content_length; ++i){
-        for(j=0; j<hlength; j++ ){
-            cout<<' '<<titles[j].at(i)->content<<"  |";
-        }
-        cout<<endl;
-    }
-}
-
-void CSV_Tabler::addEmpBoxes(){ //Whenever this is called from addContentBox() then the difference will be 1 or 0 only
-    int i, max_clen = 0;
-    contain_box c_box;
-    c_box.content = "";
-
-    for(i=0; i<hlength; ++i){   //taking maximum number of rows
-        if(titles[i].content_length > max_clen) max_clen=titles[i].content_length;
-    }
-
-    for(i=0; i<hlength; ++i){   //for maintaining same number of rows in all titles
-        if(titles[i].content_length < max_clen){   //That is those columns that are lagging in number of rows
-            retBox(ids[i].getID())->addContBox(c_box);
-            i--;    //to check the same column again and again until it isn't balanced to the longest column
-        }
-    }
-    clength = max_clen;  //finally changed clength, after solving the case of lagging columns
-}
-
-CSV_Tabler::CSV_Tabler()
-{
-    hlength = clength = 0;
-}
-
-CSV_Tabler::~CSV_Tabler()
-{   //All containers do this already
-}
-
 int main(){
-    CSV_Tabler All_Contacts, NITP_Contacts;
+    CSV_Tabler NITP_Contacts, Selected_Contacts;
   
     struct node
     {
@@ -223,11 +173,130 @@ int main(){
             cout<<endl;
         }
     }
-//    NITP_Contacts.display();
     NITP_Contacts.removeEmptyColumns();
-    NITP_Contacts.display();
-    cout<<"Ran good!\n";
+    NITP_Contacts.exportID_Titles(Selected_Contacts);
+
+    char ch;
+    for (size_t i = 0; i < NITP_Contacts.titles[0].content_length; i++) //actually needed number of rows, but didnt want to make clength public
+    {
+        clearscr();
+        cout<<"Records Left - "<<NITP_Contacts.titles[0].content_length - i-1;
+        NITP_Contacts.IndividualDisplay(i);
+        cout<<"\nWant to keep this (Y/N) ?";
+//        ch = getchar();
+        cin>>ch;
+        if(ch == 'Y'|| ch == 'y' || ch=='1'){
+            cout<<"You wanted to add this person! and you typed : "<<ch<<" But still it got selected because :";
+            cout<<endl;
+            NITP_Contacts.exportIndex(Selected_Contacts, i);
+        }
+    }
+
+    clearscr();
+    Selected_Contacts.removeEmptyColumns(); //Just getting rid of more columns if possible
+    cout<<"Here are your Exported Contacts - \n\n";
+    Selected_Contacts.display();
+
     return 0;
+}
+
+void head_box::eraseContainers(){
+    this->content_length=0;
+    this->containers.erase(begin(containers),end(containers));
+}
+
+void CSV_Tabler::exportIndex(CSV_Tabler &exportObj, int index){
+    cout<<"initially clength="<<exportObj.clength;
+    cout<<endl;
+    for (int i = 0; i < hlength; i++)
+    {
+        exportObj.addContentBox(this->titles[i].at(index)->content, i);
+    }
+    cout<<"Added Person named : "<<titles[0].at(index)->content<<" at clength="<<exportObj.clength;
+    cout<<endl;
+}
+
+void CSV_Tabler::exportID_Titles(CSV_Tabler &exportObj){
+    exportObj.hlength = this->hlength;
+    exportObj.ids = this->ids;
+    exportObj.titles = this->titles;
+    for(int i=0; i<hlength; ++i){
+        exportObj.titles[i].eraseContainers();
+    }
+}
+
+void CSV_Tabler::IndividualDisplay(int index){
+    cout<<"\n\n"<<titles[0].at(index)->content<<"\n----";
+    for (int i = 0; i < titles[0].at(index)->content.size(); i++)
+    {
+        cout<<'-';
+    }
+    cout<<'\n';
+    for (size_t i = 0; i < hlength; i++)
+    {
+        cout<<' '<<titles[i].title<<" : "<<titles[i].at(index)->content<<'\n';
+    }    
+}
+
+void CSV_Tabler::removeEmptyColumns(){
+    bool isEmpty=true;
+    for(int i=0; i<hlength; i++){
+        for(int j=0; j<titles[i].content_length; j++){
+            if(titles[i].at(j)->content != ""){
+                isEmpty = false;
+            }
+        }
+        if(isEmpty){
+            titles.erase(titles.begin()+i);
+            ids.erase(ids.begin()+i);
+            --hlength;
+        }
+        isEmpty = true;
+    }
+}
+
+void CSV_Tabler::display(){
+    int i,j;
+    cout<<'|';
+    for (i = 0; i < titles.size(); i++) //TODO - for proper spacing, have a data member having count of max length that any element of it has in that column
+    {
+        cout<<' '<<titles[i].title<<" | ";
+    }
+    this->addEmpBoxes();    //Just to ensure accessing content doesn't give out of bound
+    cout<<'\n';
+    for(i=0; i<titles[i].content_length; ++i){
+        for(j=0; j<hlength; j++ ){
+            cout<<' '<<titles[j].at(i)->content<<"  |";
+        }
+        cout<<endl;
+    }
+}
+
+void CSV_Tabler::addEmpBoxes(){ //Whenever this is called from addContentBox() then the difference will be 1 or 0 only
+    int i, max_clen = 0;
+    contain_box c_box;
+    c_box.content = "";
+
+    for(i=0; i<hlength; ++i){   //taking maximum number of rows
+        if(titles[i].content_length > max_clen) max_clen=titles[i].content_length;
+    }
+
+    for(i=0; i<hlength; ++i){   //for maintaining same number of rows in all titles
+        if(titles[i].content_length < max_clen){   //That is those columns that are lagging in number of rows
+            retBox(ids[i].getID())->addContBox(c_box);
+            i--;    //to check the same column again and again until it isn't balanced to the longest column
+        }
+    }
+    clength = max_clen;  //finally changed clength, after solving the case of lagging columns
+}
+
+CSV_Tabler::CSV_Tabler()
+{
+    hlength = clength = 0;
+}
+
+CSV_Tabler::~CSV_Tabler()
+{   //All containers do this already
 }
 
 bool CSV_Tabler::verifyLen(){
@@ -315,4 +384,37 @@ void CSV_Tabler::addHeadBox(string title){
         cout<<"\n\n\n\n\n\nJust QUIT the Program... The data has gone haywire!!!!\n\n\n\n\n\n";
         cout<<endl;
     }
+}
+
+void clearscr(){
+    set_h_w();
+    for(int i=0; i<terminal_height; i++)
+        cout<<'\n';
+}
+
+string getString(int num){
+    string in,out;
+    while (num>0)   //get digits in string
+    {
+        in.push_back(num%10);
+        num/=10;
+    }
+    out.reserve(in.size());
+    for (int i = in.size()-1; i >= 0; i--)  //just reverse the string
+    {
+        out.push_back(in[i]);
+    }
+    return out;
+}
+
+void set_h_w(void){
+    #ifdef __linux__
+        winsize w;  //struct winsize
+        ioctl (STDOUT_FILENO, TIOCGWINSZ, &w);
+        terminal_height = w.ws_row;
+    #else
+        CONSOLE_SCREEN_BUFFER_INFO csbi;
+        GetConsoleScreenBufferInfo( GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+        terminal_height = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+    #endif
 }
