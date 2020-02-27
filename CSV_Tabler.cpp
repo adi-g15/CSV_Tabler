@@ -149,13 +149,15 @@ int main(){
             }
         }
 
-        cout<<endl;
+        std::cout<<std::endl;
 
         while(!fin.eof()){    //This one for reading the content rows
             tempindex=0;
+            bool quotation_started = false;
             while(c != '\n' || !fin.eof()){
                 fin>>noskipws>>c;
-                if(c == ','){   //no need to push this to string
+                if(c == '"')    quotation_started = !quotation_started;
+                if(c == ',' && !quotation_started){   //no need to push this to string
                     //add heading 'title'
                     tmpnode.set(title, tempindex);
                     tmp_vec.push_back(tmpnode);
@@ -170,31 +172,31 @@ int main(){
                     content.push_back(c);
                 }
             }
-            cout<<endl;
+            std::cout<<std::endl;
         }
     }
-    NITP_Contacts.removeEmptyColumns();
+    NITP_Contacts.removeEmptyColumns();     //TODO - Not removing all empty columns, some still there, correct the method
     NITP_Contacts.exportID_Titles(Selected_Contacts);
 
     char ch;
     for (size_t i = 0; i < NITP_Contacts.titles[0].content_length; i++) //actually needed number of rows, but didnt want to make clength public
     {
         clearscr();
-        cout<<"Records Left - "<<NITP_Contacts.titles[0].content_length - i-1;
+        std::cout<<"Records Left - "<<NITP_Contacts.titles[0].content_length - i-1;
         NITP_Contacts.IndividualDisplay(i);
-        cout<<"\nWant to keep this (Y/N) ?";
+        std::cout<<"\nWant to keep this (Y/N) ?";
 //        ch = getchar();
-        cin>>ch;
+        std::cin>>ch;
         if(ch == 'Y'|| ch == 'y' || ch=='1'){
-            cout<<"You wanted to add this person! and you typed : "<<ch<<" But still it got selected because :";
-            cout<<endl;
+            std::cout<<"You wanted to add this person! and you typed : "<<ch<<" But still it got selected because :";
+            std::cout<<std::endl;
             NITP_Contacts.exportIndex(Selected_Contacts, i);
         }
     }
 
     clearscr();
     Selected_Contacts.removeEmptyColumns(); //Just getting rid of more columns if possible
-    cout<<"Here are your Exported Contacts - \n\n";
+    std::cout<<"Here are your Exported Contacts - \n\n";
     Selected_Contacts.display();
 
     return 0;
@@ -206,14 +208,14 @@ void head_box::eraseContainers(){
 }
 
 void CSV_Tabler::exportIndex(CSV_Tabler &exportObj, int index){
-    cout<<"initially clength="<<exportObj.clength;
-    cout<<endl;
+    std::cout<<"initially clength="<<exportObj.clength;
+    std::cout<<std::endl;
     for (int i = 0; i < hlength; i++)
     {
         exportObj.addContentBox(this->titles[i].at(index)->content, i);
     }
-    cout<<"Added Person named : "<<titles[0].at(index)->content<<" at clength="<<exportObj.clength;
-    cout<<endl;
+    std::cout<<"Added Person named : "<<titles[0].at(index)->content<<" at clength="<<exportObj.clength;
+    std::cout<<std::endl;
 }
 
 void CSV_Tabler::exportID_Titles(CSV_Tabler &exportObj){
@@ -226,15 +228,15 @@ void CSV_Tabler::exportID_Titles(CSV_Tabler &exportObj){
 }
 
 void CSV_Tabler::IndividualDisplay(int index){
-    cout<<"\n\n"<<titles[0].at(index)->content<<"\n----";
+    std::cout<<"\n\n"<<titles[0].at(index)->content<<"\n----";
     for (int i = 0; i < titles[0].at(index)->content.size(); i++)
     {
-        cout<<'-';
+        std::cout<<'-';
     }
-    cout<<'\n';
-    for (size_t i = 0; i < hlength; i++)
+    std::cout<<'\n';
+    for (size_t i = 1; i < hlength; i++)
     {
-        cout<<' '<<titles[i].title<<" : "<<titles[i].at(index)->content<<'\n';
+        std::cout<<' '<<titles[i].title<<" : "<<titles[i].at(index)->content<<'\n';
     }    
 }
 
@@ -257,18 +259,18 @@ void CSV_Tabler::removeEmptyColumns(){
 
 void CSV_Tabler::display(){
     int i,j;
-    cout<<'|';
-    for (i = 0; i < titles.size(); i++) //TODO - for proper spacing, have a data member having count of max length that any element of it has in that column
+    std::cout<<'|';
+    for (i = 0; i < titles.size(); i++) //TODO - for proper spastd::cing, have a data member having count of max length that any element of it has in that column
     {
-        cout<<' '<<titles[i].title<<" | ";
+        std::cout<<' '<<titles[i].title<<" | ";
     }
     this->addEmpBoxes();    //Just to ensure accessing content doesn't give out of bound
-    cout<<'\n';
+    std::cout<<'\n';
     for(i=0; i<titles[i].content_length; ++i){
         for(j=0; j<hlength; j++ ){
-            cout<<' '<<titles[j].at(i)->content<<"  |";
+            std::cout<<' '<<titles[j].at(i)->content<<"  |";
         }
-        cout<<endl;
+        std::cout<<std::endl;
     }
 }
 
@@ -307,20 +309,20 @@ bool CSV_Tabler::verifyLen(){
             h_check = true;
         }
         else{
-            cout<<"Length of Title vector different than headerlength";
-            cout<<endl;
+            std::cout<<"Length of Title vector different than headerlength";
+            std::cout<<std::endl;
             return false;}
     }
     else{
-        cout<<"Length of ID vector different than headerlength";
-        cout<<endl;
+        std::cout<<"Length of ID vector different than headerlength";
+        std::cout<<std::endl;
         return false;   }
 
     for (int i = 0; i < hlength; i++)
     {
         if(titles[i].content_length != clength){
-            cout<<"Length of Content vector at column index "<<i<<" different than clength";
-            cout<<endl;
+            std::cout<<"Length of Content vector at column index "<<i<<" different than clength";
+            std::cout<<std::endl;
             c_check = false;
             return false;
         }
@@ -337,7 +339,7 @@ void head_box::addContBox(contain_box newContBox){    //Not private, but still d
 const contain_box* head_box::at(size_t index){
                             //1st index is 0
     if(index<0 || index >= containers.size()){
-        cout<<"\n\nInvalid Index... Returning NULL. Be Careful or Quit.\n\n";
+        std::cout<<"\n\nInvalid Index... Returning NULL. Be Careful or Quit.\n\n";
         return NULL;
     }
     else return &(containers[index]);
@@ -381,15 +383,15 @@ void CSV_Tabler::addHeadBox(string title){
     ids.push_back(newIdB);
     titles.push_back(hbox);
     if(!verifyLen()){
-        cout<<"\n\n\n\n\n\nJust QUIT the Program... The data has gone haywire!!!!\n\n\n\n\n\n";
-        cout<<endl;
+        std::cout<<"\n\n\n\n\n\nJust QUIT the Program... The data has gone haywire!!!!\n\n\n\n\n\n";
+        std::cout<<std::endl;
     }
 }
 
 void clearscr(){
     set_h_w();
     for(int i=0; i<terminal_height; i++)
-        cout<<'\n';
+        std::cout<<'\n';
 }
 
 string getString(int num){
