@@ -133,7 +133,8 @@ int main(){
         int tempindex = 0;
         node tmpnode;
         
-        while(c != '\n' && !fin.eof()){
+        while(c != '\n' && !fin.eof()){ //TODO - Last two columns are not being inputted, and at start the values are 1 before the actual value that should be in its position in the columns!, And Also there should be 39 columns, but it has 36 columns
+
             fin>>noskipws>>c;
             if(c == ','){   //no need to push this to string
                 //add heading 'title'
@@ -148,7 +149,15 @@ int main(){
                 title.push_back(c);
             }
         }
+/*         This should be uncommented later, since last column is surely going to be missed
+                Commented it now, since the table messes up
 
+        tmpnode.set(title, tempindex);  //To cover up for the last column... Since it has '\n' at end not a ','
+        tmp_vec.push_back(tmpnode);
+        ++tempindex;
+        NITP_Contacts.addHeadBox(title);
+        title.erase();  //position and n being default
+*/
         std::cout<<std::endl;
 
         while(!fin.eof()){    //This one for reading the content rows
@@ -175,27 +184,40 @@ int main(){
             std::cout<<std::endl;
         }
     }
-    NITP_Contacts.removeEmptyColumns();     //TODO - Not removing all empty columns, some still there, correct the method
+//    NITP_Contacts.removeEmptyColumns();     //TODO - Not removing all empty columns, some still there, correct the method
     NITP_Contacts.exportID_Titles(Selected_Contacts);
 
-    char ch;
-    for (size_t i = 0; i < NITP_Contacts.titles[0].content_length; i++) //actually needed number of rows, but didnt want to make clength public
-    {
+    int choice=0;
+    vector<int> choice_arr;
+    bool skip_iter=false;   //to use the 'if in choice_arr then continue' way (read next comment)
+    while(true){
         clearscr();
-        std::cout<<"Records Left - "<<NITP_Contacts.titles[0].content_length - i-1;
-        NITP_Contacts.IndividualDisplay(i);
-        std::cout<<"\nWant to keep this (Y/N) ?";
-//        ch = getchar();
-        std::cin>>ch;
-        if(ch == 'Y'|| ch == 'y' || ch=='1'){
-            std::cout<<"You wanted to add this person! and you typed : "<<ch<<" But still it got selected because :";
-            std::cout<<std::endl;
-            NITP_Contacts.exportIndex(Selected_Contacts, i);
+        NITP_Contacts.display();
+        std::cout<<"Type in the row number to select the contact, after you are done, press 0\n\n";
+        for(int i=0; i<NITP_Contacts.titles[0].content_length; ++i){
+            /*To not print chosen contacts, there were two ways-
+              1. Either remove them from 'NITP_Contacts'
+              2. Check 'if i in choice_arr then continue'*/
+            skip_iter = false;
+            for(int j=0; j<choice_arr.size(); ++j)
+                if(i==choice_arr[j]){
+                    skip_iter = true;
+                    break;
+                }
+            if(skip_iter) continue;
+            //Change back to 0 from 1
+            std::cout<<' '<<i+1<<". "<<NITP_Contacts.titles[1].at(i)->content<<'\n';
         }
+        std::cout<<'\n'<<endl;
+        std::cin>>choice;
+        if(choice>0 && choice<NITP_Contacts.titles[0].content_length){
+            choice_arr.push_back(choice-1);
+            NITP_Contacts.exportIndex(Selected_Contacts, choice-1);
+        }
+        else break;
     }
-
     clearscr();
-    Selected_Contacts.removeEmptyColumns(); //Just getting rid of more columns if possible
+//    Selected_Contacts.removeEmptyColumns(); //Just getting rid of more columns if possible
     std::cout<<"Here are your Exported Contacts - \n\n";
     Selected_Contacts.display();
 
