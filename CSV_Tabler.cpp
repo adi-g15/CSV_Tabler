@@ -98,6 +98,7 @@ public:
     void removeEmptyColumns(void);
     void IndividualDisplay(int);
     void display(void);
+    void list_titles(void);
     void exportID_Titles(CSV_Tabler&);
     void exportIndex(CSV_Tabler&, int);
     CSV_Tabler(void);
@@ -121,25 +122,21 @@ int main(){
         }
     };
     
-    vector<node> tmp_vec;   //temporary; Just for simply using this and not ids in main, to KISS
     string filein;
-    filein = "NITP_Contacts.csv";
+    filein = "NIT-P.csv";
     ifstream fin(filein,ios::in);
     fin.seekg(0,ios::beg);
     if(!fin.eof()){
         char c;
         string title;
         string content;
-        int tempindex = 0;
-        node tmpnode;
+        int index = 0;
         
-        while(c != '\n' && !fin.eof()){
+        while(c != '\n' && !fin.eof()){ //Getting titles
             fin>>noskipws>>c;
             if(c == ','){   //no need to push this to string
                 //add heading 'title'
-                tmpnode.set(title, tempindex);
-                tmp_vec.push_back(tmpnode);
-                ++tempindex;
+                ++index;
                 NITP_Contacts.addHeadBox(title);
                 title.erase();  //position and n being default
             }
@@ -148,23 +145,22 @@ int main(){
                 title.push_back(c);
             }
         }
-
-        std::cout<<std::endl;
+        //Adding the last title, which doesn't have a ',' but a '\n'
+                NITP_Contacts.addHeadBox(title);
+                title.erase();  //position and n being default
 
         while(!fin.eof()){    //This one for reading the content rows
-            tempindex=0;
+            index=0;
             bool quotation_started = false;
             while(c != '\n' || !fin.eof()){
                 fin>>noskipws>>c;
                 if(c == '"')    quotation_started = !quotation_started;
                 if(c == ',' && !quotation_started){   //no need to push this to string
                     //add heading 'title'
-                    tmpnode.set(title, tempindex);
-                    tmp_vec.push_back(tmpnode);
-                    ++tempindex;
-                    if(tempindex == NITP_Contacts.hlength)  tempindex=0;
+                    ++index;
                         //Though, ideally the above condition should never meet since the loop ends at newline
-                    NITP_Contacts.addContentBox(content,tempindex);
+                    NITP_Contacts.addContentBox(content,index);
+                    if(index == NITP_Contacts.hlength && index!=0)  index=0;
                     content.erase();  //position and n being default
                 }
                 else
@@ -172,13 +168,18 @@ int main(){
                     content.push_back(c);
                 }
             }
-            std::cout<<std::endl;
+            //Adding the last string per line
+                ++index;
+                NITP_Contacts.addContentBox(content,index);
+                index = 0;
+                content.erase();  //position and n being default
         }
     }
-    NITP_Contacts.removeEmptyColumns();     //TODO - Not removing all empty columns, some still there, correct the method
+    NITP_Contacts.addEmpBoxes();    //To solve bug caused by difference of boxes in name column
+//    NITP_Contacts.removeEmptyColumns();     //TODO - Not removing all empty columns, some still there, correct the method
     NITP_Contacts.exportID_Titles(Selected_Contacts);
 
-    char ch;
+    char ch = 'n';
     for (size_t i = 0; i < NITP_Contacts.titles[0].content_length; i++) //actually needed number of rows, but didnt want to make clength public
     {
         clearscr();
@@ -186,10 +187,10 @@ int main(){
         NITP_Contacts.IndividualDisplay(i);
         std::cout<<"\nWant to keep this (Y/N) ?";
 //        ch = getchar();
+//TODO - Edit so that it doesn't ignore enter key
         std::cin>>ch;
         if(ch == 'Y'|| ch == 'y' || ch=='1'){
-            std::cout<<"You wanted to add this person! and you typed : "<<ch<<" But still it got selected because :";
-            std::cout<<std::endl;
+\           std::cout<<std::endl;
             NITP_Contacts.exportIndex(Selected_Contacts, i);
         }
     }
@@ -204,7 +205,16 @@ int main(){
 
 void head_box::eraseContainers(){
     this->content_length=0;
-    this->containers.erase(begin(containers),end(containers));
+    this->containers.erase(this->containers.begin(),this->containers.end());
+}
+
+void CSV_Tabler::list_titles(){
+    int i;
+    std::cout<<'|';
+    for(i = 0; i < titles.size(); i++) //TODO - for proper spastd::cing, have a data member having count of max length that any element of it has in that column
+    {
+        std::cout<<i+1<<". "<<titles[i].title<<std::endl;
+    }
 }
 
 void CSV_Tabler::exportIndex(CSV_Tabler &exportObj, int index){
@@ -228,16 +238,25 @@ void CSV_Tabler::exportID_Titles(CSV_Tabler &exportObj){
 }
 
 void CSV_Tabler::IndividualDisplay(int index){
-    std::cout<<"\n\n"<<titles[0].at(index)->content<<"\n----";
-    for (int i = 0; i < titles[0].at(index)->content.size(); i++)
+    try
     {
-        std::cout<<'-';
+        std::cout<<"\n\n"<<titles[0].at(index)->content<<"\n----";
+        for (int i = 0; i < titles[0].at(index)->content.size(); i++)
+        {
+            std::cout<<'-';
+        }
+        std::cout<<'\n';
+        for (size_t i = 1; i < hlength; i++)
+        {
+            std::cout<<' '<<titles[i].title<<" : "<<titles[i].at(index)->content<<'\n';
+        }
     }
-    std::cout<<'\n';
-    for (size_t i = 1; i < hlength; i++)
+    catch(const char* e)
     {
-        std::cout<<' '<<titles[i].title<<" : "<<titles[i].at(index)->content<<'\n';
-    }    
+        std::cerr << e << '\n';
+    }
+    
+        
 }
 
 void CSV_Tabler::removeEmptyColumns(){
@@ -339,8 +358,7 @@ void head_box::addContBox(contain_box newContBox){    //Not private, but still d
 const contain_box* head_box::at(size_t index){
                             //1st index is 0
     if(index<0 || index >= containers.size()){
-        std::cout<<"\n\nInvalid Index... Returning NULL. Be Careful or Quit.\n\n";
-        return NULL;
+        throw "Invalid Index... Returning NULL. Be Careful or Quit.\n\n";
     }
     else return &(containers[index]);
 }
@@ -359,18 +377,19 @@ head_box* CSV_Tabler::retBox(string id){
 }
 
 void CSV_Tabler::addContentBox(string content, int index){  //this index then links to the unique id, then the head_box which will add this
-    if(index >= titles.size() || index < 0){
-        cerr<<"Invalid Index";
+                                                        //NOTE - index starts from 1
+    if(index >= titles.size() || index < 1){
+        cerr<<"Invalid Index "<<index<<std::endl;
         return;
     }
-    if(titles[index].content_length > clength ){   //ie. difference of number of boxes from neighbourhood boxes already greater than 1 but triying to add one more... So to balance out, empty boxes will be added to other columns
+    if(titles[index-1].content_length > clength ){   //ie. difference of number of boxes from neighbourhood boxes already greater than 1 but triying to add one more... So to balance out, empty boxes will be added to other columns
         this->addEmpBoxes();
     }                                                    //1st index is 0
 
     contain_box c_box;
     c_box.content = content;
     //we can't directly access to which title to add this block
-    retBox(ids[index].getID())->addContBox(c_box);
+    retBox(ids[index-1].getID())->addContBox(c_box);
 }
 
 void CSV_Tabler::addHeadBox(string title){
