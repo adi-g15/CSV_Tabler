@@ -1,6 +1,3 @@
 *.out
-a.out
-.vscode
-*.csv
-*.hpp
-Untitled
+input
+experiment*
